@@ -33,37 +33,111 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
       powerPreference: 'high-performance'
     });
     renderer.setSize(width, height);
-    const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.75);
+    const pixelRatio = Math.min(window.devicePixelRatio || 1, 2);
     renderer.setPixelRatio(pixelRatio);
     renderer.setClearColor(0x000000, 0);
 
     const canvas = renderer.domElement;
-    canvas.className =
-      'w-full h-full block touch-none cursor-grab active:cursor-grabbing select-none';
+    canvas.className = 'w-full h-full block cursor-grab active:cursor-grabbing select-none';
+    // Allow native vertical scroll so sphere does not block downward page scrolling on mobile
+    canvas.style.touchAction = 'pan-y';
     container.appendChild(canvas);
 
-    // 3. Dot Texture generation (soft gaussian core with subtle outer corona)
-    const dotCanvas = document.createElement('canvas');
-    dotCanvas.width = 64;
-    dotCanvas.height = 64;
-    const ctx = dotCanvas.getContext('2d');
+    // 3. Crisp High-Resolution Glyph & Symbol Texture Atlas
+    // 4x4 grid (16 cells) in a 1024x1024 canvas = 256x256 px per glyph
+    const atlasCanvas = document.createElement('canvas');
+    const atlasSize = 1024;
+    atlasCanvas.width = atlasSize;
+    atlasCanvas.height = atlasSize;
+    const ctx = atlasCanvas.getContext('2d');
+
+    const symbols = [
+      '+', '×', '✦', '▲',
+      '◆', '■', '*', '#',
+      '0', '1', 'X', 'Ø',
+      '%', '•', ':', '~'
+    ];
+
     if (ctx) {
-      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-      gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
-      gradient.addColorStop(0.28, 'rgba(242, 245, 252, 0.88)');
-      gradient.addColorStop(0.55, 'rgba(195, 205, 222, 0.35)');
-      gradient.addColorStop(0.82, 'rgba(150, 160, 180, 0.08)');
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-      ctx.fillStyle = gradient;
-      ctx.beginPath();
-      ctx.arc(32, 32, 31, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.clearRect(0, 0, atlasSize, atlasSize);
+      const cols = 4;
+      const cellSize = atlasSize / cols; // 256px
+
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      for (let s = 0; s < symbols.length; s++) {
+        const col = s % cols;
+        const row = Math.floor(s / cols);
+        const cx = col * cellSize + cellSize / 2;
+        const cy = row * cellSize + cellSize / 2;
+        const sym = symbols[s];
+
+        if (sym === '•') {
+          // Sharp solid circular dot with crisp rasterization
+          ctx.beginPath();
+          ctx.arc(cx, cy, 48, 0, Math.PI * 2);
+          ctx.fill();
+        } else if (sym === '✦') {
+          // Sharp kinetic 4-point star
+          ctx.beginPath();
+          const outerR = 76;
+          const innerR = 24;
+          for (let p = 0; p < 8; p++) {
+            const angle = (p * Math.PI) / 4 - Math.PI / 2;
+            const r = p % 2 === 0 ? outerR : innerR;
+            const px = cx + Math.cos(angle) * r;
+            const py = cy + Math.sin(angle) * r;
+            if (p === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+        } else if (sym === '▲') {
+          // Sharp geometric triangle
+          ctx.beginPath();
+          const triR = 68;
+          ctx.moveTo(cx, cy - triR);
+          ctx.lineTo(cx + triR * 0.9, cy + triR * 0.65);
+          ctx.lineTo(cx - triR * 0.9, cy + triR * 0.65);
+          ctx.closePath();
+          ctx.fill();
+        } else if (sym === '◆') {
+          // Sharp diamond
+          ctx.beginPath();
+          const diaR = 68;
+          ctx.moveTo(cx, cy - diaR);
+          ctx.lineTo(cx + diaR, cy);
+          ctx.lineTo(cx, cy + diaR);
+          ctx.lineTo(cx - diaR, cy);
+          ctx.closePath();
+          ctx.fill();
+        } else if (sym === '■') {
+          // Sharp square
+          const sqSize = 98;
+          ctx.fillRect(cx - sqSize / 2, cy - sqSize / 2, sqSize, sqSize);
+        } else {
+          // Sharp alphanumeric and code symbols using bold geometric monospace/grotesk
+          const fontSize = sym === '+' || sym === '×' ? 144 : (sym === ':' || sym === '~' ? 150 : 128);
+          ctx.font = `800 ${fontSize}px "Space Grotesk", "JetBrains Mono", "SF Mono", monospace, sans-serif`;
+          ctx.fillText(sym, cx, cy);
+        }
+      }
     }
-    const dotTexture = new THREE.CanvasTexture(dotCanvas);
+
+    const charTexture = new THREE.CanvasTexture(atlasCanvas);
+    charTexture.flipY = false;
+    charTexture.minFilter = THREE.LinearMipmapLinearFilter;
+    charTexture.magFilter = THREE.LinearFilter;
+    charTexture.generateMipmaps = true;
 
     // 4. Procedural Fibonacci Golden Sphere Distribution
-    const particleCount = isMobile ? 1400 : 2600;
-    const sphereRadius = isMobile ? 2.35 : 3.15;
+    // Reduced again by 10%
+    // Mobile: 1.94 * 0.90 = 1.75
+    // Desktop: 3.98 * 0.90 = 3.58
+    const particleCount = isMobile ? 1150 : 2000;
+    const sphereRadius = isMobile ? 1.75 : 3.58;
 
     const geometry = new THREE.BufferGeometry();
     const basePositions = new Float32Array(particleCount * 3);
@@ -71,10 +145,11 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     const currentDisplacements = new Float32Array(particleCount * 3);
     const targetDisplacements = new Float32Array(particleCount * 3);
 
-    // Dynamic per-dot scaling arrays
+    // Dynamic per-glyph scaling and symbol indices
     const currentScales = new Float32Array(particleCount);
     const targetScales = new Float32Array(particleCount);
     const colors = new Float32Array(particleCount * 3);
+    const charIndices = new Float32Array(particleCount);
 
     const goldenAngle = Math.PI * (3 - Math.sqrt(5));
 
@@ -97,8 +172,11 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
       currentScales[i] = 1.0;
       targetScales[i] = 1.0;
 
-      // Subtle monochromatic tonal depth
-      const tone = 0.82 + Math.random() * 0.18;
+      // Assign a random symbol index from the 16 available in the atlas
+      charIndices[i] = Math.floor(Math.random() * symbols.length);
+
+      // Clean, bright monochrome tonal depth
+      const tone = 0.86 + Math.random() * 0.14;
       colors[i * 3] = tone;
       colors[i * 3 + 1] = tone * 0.98;
       colors[i * 3 + 2] = tone * 1.0;
@@ -107,30 +185,36 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     geometry.setAttribute('aScale', new THREE.BufferAttribute(currentScales, 1));
+    geometry.setAttribute('aCharIndex', new THREE.BufferAttribute(charIndices, 1));
 
-    // 5. Custom Points Shader Material for Smooth Per-Dot Scaling & Luminescence
-    const baseParticleSize = isMobile ? 0.052 : 0.058;
+    // 5. Custom Points Shader Material for Razor-Sharp Glyph Rendering
+    const baseParticleSize = isMobile ? 0.080 : 0.098;
 
     const material = new THREE.ShaderMaterial({
       uniforms: {
-        uTexture: { value: dotTexture },
+        uTexture: { value: charTexture },
         uBaseSize: { value: baseParticleSize },
         uHeight: { value: height * pixelRatio }
       },
       vertexShader: `
         attribute float aScale;
+        attribute float aCharIndex;
         attribute vec3 color;
         varying vec3 vColor;
         varying float vScale;
+        varying float vCharIndex;
         uniform float uBaseSize;
         uniform float uHeight;
 
         void main() {
           vColor = color;
           vScale = aScale;
+          vCharIndex = aCharIndex;
           vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-          // Attenuated particle size with smooth per-dot dynamic scale
+          // Scale glyph size with perspective distance
           gl_PointSize = (uBaseSize * aScale) * (uHeight / -mvPosition.z);
+          // Prevent particle clipping, allow rich scaling during proximity hover
+          gl_PointSize = clamp(gl_PointSize, 3.0, 96.0);
           gl_Position = projectionMatrix * mvPosition;
         }
       `,
@@ -138,18 +222,34 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
         uniform sampler2D uTexture;
         varying vec3 vColor;
         varying float vScale;
+        varying float vCharIndex;
 
         void main() {
-          vec4 tex = texture2D(uTexture, gl_PointCoord);
-          if (tex.a < 0.015) discard;
-          // Dots scaling up gain refined energetic radiance
-          float lumBoost = 1.0 + (vScale - 1.0) * 0.32;
+          float cols = 4.0;
+          float rows = 4.0;
+          float idx = floor(vCharIndex + 0.5);
+          float col = mod(idx, cols);
+          float row = floor(idx / cols);
+
+          // Map gl_PointCoord (0..1) into character atlas cell
+          vec2 uv = vec2((col + gl_PointCoord.x) / cols, (row + gl_PointCoord.y) / rows);
+          vec4 tex = texture2D(uTexture, uv);
+
+          // Hard threshold to completely remove blurry edges and create razor-sharp glyphs
+          if (tex.a < 0.28) discard;
+
+          // Crisp anti-aliasing cutoff
+          float alpha = smoothstep(0.28, 0.42, tex.a);
+
+          // Subtle brightness boost during hover or interaction
+          float lumBoost = 1.0 + (vScale - 1.0) * 0.35;
           vec3 finalColor = vColor * lumBoost;
-          gl_FragColor = vec4(finalColor, tex.a * 0.82);
+
+          gl_FragColor = vec4(finalColor, alpha * 0.95);
         }
       `,
       transparent: true,
-      blending: THREE.AdditiveBlending,
+      blending: THREE.NormalBlending,
       depthWrite: false
     });
 
@@ -158,7 +258,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     sphereGroup.add(points);
     scene.add(sphereGroup);
 
-    // 6. Interaction State Tracking
+    // 6. Interaction State Tracking & Refined Sensitivity
     const mouseNDC = new THREE.Vector2(-999, -999);
     let isMouseHovering = false;
     let isFingerPressing = false;
@@ -169,6 +269,10 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     let pointerDownTime = 0;
     let lastPointerX = 0;
     let lastPointerY = 0;
+
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let isScrolling = false;
 
     let rotVelocityX = 0;
     let rotVelocityY = 0;
@@ -186,7 +290,8 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     const activeRipples: Ripple[] = [];
 
     const raycaster = new THREE.Raycaster();
-    const projectionPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+    const boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 0), sphereRadius);
+    const frontPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), -sphereRadius * 0.4);
     const worldHit = new THREE.Vector3();
     const localHit = new THREE.Vector3();
     const scratchInvMatrix = new THREE.Matrix4();
@@ -198,42 +303,67 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
       mouseNDC.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     };
 
-    // Pointer Events: Desktop vs Mobile Specific Behavior
+    // Pointer Events: Controlled tactile rotation & smooth mobile gestures
     const handlePointerDown = (e: PointerEvent) => {
-      isDragging = true;
-      hasDragged = false;
       pointerStartX = e.clientX;
       pointerStartY = e.clientY;
       lastPointerX = e.clientX;
       lastPointerY = e.clientY;
       pointerDownTime = performance.now();
 
-      updateCursorPosition(e.clientX, e.clientY);
-
       if (e.pointerType === 'touch' || isTouchDevice) {
-        // Mobile screen press: activate 3D distortion & dot proximity scaling under finger
+        touchStartX = e.clientX;
+        touchStartY = e.clientY;
+        isScrolling = false;
         isFingerPressing = true;
       }
+
+      isDragging = true;
+      hasDragged = false;
+      targetVelocityX = 0;
+      targetVelocityY = 0;
+      updateCursorPosition(e.clientX, e.clientY);
     };
 
     const handlePointerMove = (e: PointerEvent) => {
+      if (e.pointerType === 'touch' || isTouchDevice) {
+        const deltaX = Math.abs(e.clientX - touchStartX);
+        const deltaY = Math.abs(e.clientY - touchStartY);
+
+        // If finger moves vertically more than horizontally, immediately yield to browser page scrolling!
+        if (deltaY > 8 && deltaY > deltaX * 1.15) {
+          isScrolling = true;
+          isDragging = false;
+          isFingerPressing = false;
+          return;
+        }
+      }
+
+      if (isScrolling) return;
+
       updateCursorPosition(e.clientX, e.clientY);
 
       if (e.pointerType === 'mouse') {
-        // Computer version: cursor hovering activates proximity scaling
-        isMouseHovering = true;
+        isMouseHovering = Math.abs(mouseNDC.x) <= 1.25 && Math.abs(mouseNDC.y) <= 1.25;
       }
 
       if (isDragging) {
         const deltaX = e.clientX - lastPointerX;
         const deltaY = e.clientY - lastPointerY;
 
-        if (Math.abs(e.clientX - pointerStartX) > 4 || Math.abs(e.clientY - pointerStartY) > 4) {
+        if (Math.abs(e.clientX - pointerStartX) > 3 || Math.abs(e.clientY - pointerStartY) > 3) {
           hasDragged = true;
         }
 
-        targetVelocityY += deltaX * 0.0006;
-        targetVelocityX += deltaY * 0.0006;
+        // Fluid, responsive drag rotation sensitivity
+        const dragSpeedY = isMobile ? 0.0058 : 0.0048;
+        const dragSpeedX = isMobile ? 0.0042 : 0.0036;
+        sphereGroup.rotation.y += deltaX * dragSpeedY;
+        sphereGroup.rotation.x += deltaY * dragSpeedX;
+
+        // Dynamic flick momentum calculation
+        targetVelocityY = deltaX * (isMobile ? 0.00065 : 0.00055);
+        targetVelocityX = deltaY * (isMobile ? 0.00045 : 0.00038);
 
         lastPointerX = e.clientX;
         lastPointerY = e.clientY;
@@ -244,27 +374,34 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
       const now = performance.now();
       const clickDuration = now - pointerDownTime;
 
-      // Desktop click ripple trigger
+      // Desktop click ripple trigger (gentle, controlled wave)
       if (e.pointerType === 'mouse' && !hasDragged && clickDuration < 380 && isMouseHovering) {
         raycaster.setFromCamera(mouseNDC, camera);
-        if (raycaster.ray.intersectPlane(projectionPlane, worldHit)) {
+        const hit = raycaster.ray.intersectSphere(boundingSphere, worldHit) || raycaster.ray.intersectPlane(frontPlane, worldHit);
+        if (hit) {
           scratchInvMatrix.copy(sphereGroup.matrixWorld).invert();
           localHit.copy(worldHit).applyMatrix4(scratchInvMatrix);
 
           activeRipples.push({
             origin: localHit.clone(),
             startTime: now,
-            duration: 1200,
-            maxRadius: sphereRadius * 2.2,
-            amplitude: 0.28
+            duration: 950,
+            maxRadius: sphereRadius * 1.6,
+            amplitude: 0.08
           });
           isDeformed = true;
         }
       }
 
-      // Mobile screen release: finger lifted, distortion & scaling smoothly spring back
+      if (isDragging) {
+        // Cap max flick velocity to prevent wild spinning, but allow smooth satisfying momentum
+        targetVelocityY = Math.max(-0.028, Math.min(0.028, targetVelocityY));
+        targetVelocityX = Math.max(-0.020, Math.min(0.020, targetVelocityX));
+      }
+
       if (e.pointerType === 'touch' || isTouchDevice) {
         isFingerPressing = false;
+        isScrolling = false;
       }
 
       isDragging = false;
@@ -274,6 +411,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
       isFingerPressing = false;
       isDragging = false;
       isMouseHovering = false;
+      isScrolling = false;
     };
 
     const handlePointerLeave = (e: PointerEvent) => {
@@ -316,7 +454,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     observer.observe(container);
 
     // 9. Core 60fps Animation Loop
-    const baseAutoRotation = prefersReducedMotion ? 0 : 0.0014;
+    const baseAutoRotation = prefersReducedMotion ? 0 : 0.0012;
 
     const animate = () => {
       if (!isVisible) {
@@ -333,27 +471,36 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
         }
       }
 
-      // Smooth rotation velocity interpolation
-      rotVelocityX += (targetVelocityX - rotVelocityX) * 0.12;
-      rotVelocityY += (targetVelocityY - rotVelocityY) * 0.12;
+      // Smooth rotation velocity interpolation with controlled deceleration
+      if (!isDragging) {
+        rotVelocityX += (targetVelocityX - rotVelocityX) * 0.12;
+        rotVelocityY += (targetVelocityY - rotVelocityY) * 0.12;
 
-      sphereGroup.rotation.y += rotVelocityY + (isDragging ? 0 : baseAutoRotation);
-      sphereGroup.rotation.x += rotVelocityX;
+        sphereGroup.rotation.y += rotVelocityY + baseAutoRotation;
+        sphereGroup.rotation.x += rotVelocityX;
 
-      // Drag velocity decay
-      targetVelocityX *= 0.93;
-      targetVelocityY *= 0.93;
+        // Quick flick decay with natural inertia glide
+        targetVelocityX *= 0.955;
+        targetVelocityY *= 0.955;
+      } else {
+        rotVelocityX = 0;
+        rotVelocityY = 0;
+      }
 
       // Gentle pitch leveling towards 0
-      sphereGroup.rotation.x *= 0.965;
+      sphereGroup.rotation.x *= 0.95;
 
       // Raycast pointer position into sphere local coordinate space
       let hasInteractionPoint = false;
-      const shouldInteract = isTouchDevice ? isFingerPressing : isMouseHovering;
+      const shouldInteract = isTouchDevice ? (isFingerPressing && !isScrolling) : isMouseHovering;
 
       if (shouldInteract) {
         raycaster.setFromCamera(mouseNDC, camera);
-        if (raycaster.ray.intersectPlane(projectionPlane, worldHit)) {
+        const hitFound =
+          raycaster.ray.intersectSphere(boundingSphere, worldHit) !== null ||
+          raycaster.ray.intersectPlane(frontPlane, worldHit) !== null;
+
+        if (hitFound) {
           scratchInvMatrix.copy(sphereGroup.matrixWorld).invert();
           localHit.copy(worldHit).applyMatrix4(scratchInvMatrix);
           hasInteractionPoint = true;
@@ -372,11 +519,10 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
         const scaleAttr = geometry.attributes.aScale as THREE.BufferAttribute;
         const scaleArray = scaleAttr.array as Float32Array;
 
-        const influenceRadius = isTouchDevice
-          ? sphereRadius * 0.95
-          : sphereRadius * 0.85;
+        // Proximity influence radius on sphere surface
+        const influenceRadius = sphereRadius * (isTouchDevice ? 0.65 : 0.58);
         const influenceRadiusSq = influenceRadius * influenceRadius;
-        const dampingSpeed = isTouchDevice ? 0.12 : 0.09;
+        const dampingSpeed = isTouchDevice ? 0.14 : 0.10;
         let maxDelta = 0;
 
         for (let i = 0; i < particleCount; i++) {
@@ -397,14 +543,20 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
               const invDist = 1 / (dist || 0.001);
 
               if (isTouchDevice && isFingerPressing) {
-                const distortAmp = Math.pow(norm, 1.7) * 0.95;
+                // Mobile touch: tactile 3D distortion indenting and pushing outwards
+                const distortAmp = Math.pow(norm, 1.6) * 0.65;
                 targetDisplacements[idx] = dx * invDist * distortAmp;
                 targetDisplacements[idx + 1] = dy * invDist * distortAmp;
                 targetDisplacements[idx + 2] = dz * invDist * distortAmp;
-                targetScales[i] = 1.0 + Math.pow(norm, 1.4) * 1.45;
+
+                // Scaling under finger up to 2.2x
+                targetScales[i] = 1.0 + Math.pow(norm, 1.3) * 1.25;
               } else if (!isTouchDevice && isMouseHovering) {
-                targetScales[i] = 1.0 + Math.pow(norm, 1.5) * 1.35;
-                const repelAmp = Math.pow(norm, 2.0) * 0.45;
+                // Desktop cursor hover: responsive glyph swelling up to 2.4x
+                targetScales[i] = 1.0 + Math.pow(norm, 1.4) * 1.40;
+
+                // Kinetic organic deflection
+                const repelAmp = Math.pow(norm, 1.8) * 0.42;
                 targetDisplacements[idx] = dx * invDist * repelAmp;
                 targetDisplacements[idx + 1] = dy * invDist * repelAmp;
                 targetDisplacements[idx + 2] = dz * invDist * repelAmp;
@@ -442,7 +594,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
             const ripple = activeRipples[r];
             const progress = (now - ripple.startTime) / ripple.duration;
             const waveRadius = progress * ripple.maxRadius;
-            const waveWidth = 0.9;
+            const waveWidth = 0.7;
             const decay = Math.pow(1 - progress, 1.5);
 
             const rx = bx - ripple.origin.x;
@@ -504,7 +656,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
 
       geometry.dispose();
       material.dispose();
-      dotTexture.dispose();
+      charTexture.dispose();
       renderer.dispose();
 
       if (container.contains(canvas)) {
@@ -515,7 +667,7 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
 
   return (
     <div className={`relative w-full h-full ${className}`}>
-      {/* Soft atmospheric cinematic radial aura behind the sphere */}
+      {/* Atmospheric cinematic radial aura behind the sphere */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{

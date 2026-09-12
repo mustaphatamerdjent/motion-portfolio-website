@@ -3,11 +3,12 @@ import { initialPortfolioData } from './data/portfolioData';
 import { Project } from './types';
 import { MinimalHero } from './components/MinimalHero';
 import { HorizontalReel } from './components/HorizontalReel';
+import { FaqSection } from './components/FaqSection';
 import { BookingSection } from './components/BookingSection';
+import { Footer } from './components/Footer';
 import { MinimalProjectModal } from './components/MinimalProjectModal';
 import { FilmGrain } from './components/FilmGrain';
 import { CustomCursor } from './components/CustomCursor';
-import { ArrowUp } from 'lucide-react';
 
 export default function App() {
   const [data] = useState(initialPortfolioData);
@@ -79,27 +80,18 @@ export default function App() {
         isModalOpen={!!selectedProject}
       />
 
-      {/* 3. PROJECT BOOKING / CREATIVE BRIEF */}
+      {/* 3. FREQUENTLY ASKED QUESTIONS (MATCHING PHOTO 2) */}
+      <FaqSection onGetInTouch={() => scrollToSection('booking')} />
+
+      {/* 4. PROJECT BOOKING / CREATIVE BRIEF */}
       <BookingSection contact={data.contact} />
 
-      {/* Minimal Footer */}
-      <footer className="border-t border-white/5 py-12 px-8 md:px-16 max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-mono text-zinc-600">
-        <div>
-          <span className="text-zinc-400 font-bold uppercase">{data.designerName}</span>
-          <span className="mx-2">•</span>
-          <span>{data.designerTitle}</span>
-          <span className="mx-2">•</span>
-          <span>© {new Date().getFullYear()}</span>
-        </div>
-
-        <button
-          onClick={() => scrollToSection('hero')}
-          className="flex items-center gap-1.5 text-zinc-500 hover:text-white transition-colors cursor-pointer"
-        >
-          <span>RETURN TO REEL</span>
-          <ArrowUp size={12} />
-        </button>
-      </footer>
+      {/* 5. FOOTER WITH SOCIALS FOR CONTACT */}
+      <Footer
+        designerName={data.designerName}
+        designerTitle={data.designerTitle}
+        onScrollToTop={() => scrollToSection('top')}
+      />
 
       {/* Minimal Project Case Study Modal */}
       <MinimalProjectModal

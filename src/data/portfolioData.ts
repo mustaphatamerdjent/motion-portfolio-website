@@ -52,11 +52,11 @@ export const initialPortfolioData: PortfolioData = {
   contact: {
     statement: "Let's make something move.",
     email: 'contact@mustaphavfx.studio',
-    instagram: 'https://instagram.com/musta_phavfx',
-    tiktok: 'https://tiktok.com/@musta_phavfx',
+    instagram: 'https://www.instagram.com/musta__phavfx/',
+    tiktok: 'https://www.tiktok.com/@mustapha__vfx',
     behance: 'https://behance.net/musta_phavfx',
     vimeo: 'https://vimeo.com/musta_phavfx',
-    linkedin: 'https://linkedin.com/in/musta-phavfx',
+    linkedin: 'https://www.linkedin.com/in/mustapha-tamerdjent-88179b431/?skipRedirect=true',
     location: 'PARIS / REMOTE WORLDWIDE',
     availability: 'AVAILABLE FOR COMMISSIONS Q3 / Q4 2026'
   },

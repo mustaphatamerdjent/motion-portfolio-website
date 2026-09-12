@@ -101,20 +101,11 @@ export function MinimalHero({
           </span>
         </div>
 
-        <nav className="flex items-center gap-3 sm:gap-6 text-[11px] sm:text-xs font-mono tracking-widest uppercase text-zinc-400 pointer-events-auto">
-          <button
-            onClick={onScrollToWork}
-            className="hover:text-white transition-colors cursor-pointer"
-          >
-            Work
-          </button>
-          <button
-            onClick={onScrollToBooking}
-            className="px-2.5 py-1 sm:px-3.5 sm:py-1.5 text-[10px] sm:text-xs rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition-all cursor-pointer whitespace-nowrap"
-          >
-            Book Project
-          </button>
-        </nav>
+        <div className="flex items-center gap-2 text-[10px] sm:text-[11px] font-mono tracking-widest text-zinc-400 uppercase pointer-events-auto">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="hidden xs:inline">AVAILABLE FOR COMMISSIONS</span>
+          <span className="xs:hidden">AVAILABLE</span>
+        </div>
       </header>
 
       {/* 4. Centered Name and Designer Title - Refined Urbanist Typography */}
@@ -140,6 +131,29 @@ export function MinimalHero({
               <TypingSubtitle className="text-[11px] sm:text-xs md:text-sm lg:text-base tracking-[0.14em] sm:tracking-[0.22em]" />
             </motion.div>
           </div>
+
+          {/* Book Project and Work buttons underneath subtitle, reverted to original style and appearance from the beginning */}
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.9, delay: 0.45, ease: [0.16, 1, 0.3, 1] }}
+            className="flex items-center gap-3.5 sm:gap-5 mt-2 sm:mt-2.5 pointer-events-auto"
+          >
+            <button
+              id="hero-book-project-btn"
+              onClick={onScrollToBooking}
+              className="px-3 py-1 sm:px-3.5 sm:py-1.5 text-[10px] sm:text-xs font-mono tracking-widest uppercase rounded-full border border-white/20 text-white hover:bg-white hover:text-black transition-all cursor-pointer whitespace-nowrap"
+            >
+              Book Project
+            </button>
+            <button
+              id="hero-work-btn"
+              onClick={onScrollToWork}
+              className="px-1.5 py-1 text-[11px] sm:text-xs font-mono tracking-widest uppercase text-zinc-400 hover:text-white transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Work
+            </button>
+          </motion.div>
         </motion.div>
       </div>
 
