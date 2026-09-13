@@ -214,15 +214,18 @@ const ReelProjectCard = memo(function ReelProjectCard({
   };
 
   const widthClass = getCardWidthClass(aspectRatio);
+  const safeScale = Number.isFinite(style?.scale) ? style.scale : 0.85;
+  const safeOpacity = Number.isFinite(style?.opacity) ? style.opacity : 0.5;
+  const safeZIndex = Number.isFinite(style?.zIndex) ? style.zIndex : 1;
 
   return (
     <div
       ref={combinedRef}
       onClick={handleCardClick}
       style={{
-        transform: `scale(${style.scale}) translate3d(0,0,0)`,
-        opacity: style.opacity,
-        zIndex: style.zIndex
+        transform: `scale(${safeScale}) translate3d(0,0,0)`,
+        opacity: safeOpacity,
+        zIndex: safeZIndex
       }}
       className={`shrink-0 ${widthClass} transition-transform duration-75 ease-out group will-change-transform cursor-pointer`}
     >
@@ -405,11 +408,17 @@ export function HorizontalReel({ projects, onSelectProject, isModalOpen }: Horiz
       }
 
       // Normalized distance: 0 at center, 1 at edge
-      const normDist = Math.min(1.4, distFromCenter / (viewportWidth * 0.45));
+      const denom = viewportWidth * 0.45;
+      const rawNormDist = denom > 0 ? distFromCenter / denom : 0;
+      const normDist = Number.isFinite(rawNormDist) ? Math.min(1.4, Math.max(0, rawNormDist)) : 0;
 
       // Lighter scaling and smooth opacity curves
-      const scale = Math.max(0.78, 1.06 - normDist * 0.28);
-      const opacity = Math.max(0.38, 1.0 - normDist * 0.6);
+      const rawScale = 1.06 - normDist * 0.28;
+      const scale = Number.isFinite(rawScale) ? Math.max(0.78, rawScale) : 0.85;
+
+      const rawOpacity = 1.0 - normDist * 0.6;
+      const opacity = Number.isFinite(rawOpacity) ? Math.max(0.38, Math.min(1.0, rawOpacity)) : 0.5;
+
       const zIndex = Math.round((1.5 - normDist) * 20);
 
       return { scale, opacity, zIndex };
@@ -594,9 +603,12 @@ export function HorizontalReel({ projects, onSelectProject, isModalOpen }: Horiz
     startRenderLoop();
   };
 
-  // Keyboard navigation
+  // Keyboard navigation (only active when modal is not open)
   useEffect(() => {
+    if (isModalOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input or textarea
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
       if (e.key === 'ArrowRight') {
         smoothScrollToRenderIndex(activeRenderIndexRef.current + 1);
       } else if (e.key === 'ArrowLeft') {
@@ -605,7 +617,7 @@ export function HorizontalReel({ projects, onSelectProject, isModalOpen }: Horiz
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isModalOpen]);
 
   // Mouse Drag to Scroll with Velocity & Momentum Glide
   const handleMouseDown = (e: MouseEvent) => {

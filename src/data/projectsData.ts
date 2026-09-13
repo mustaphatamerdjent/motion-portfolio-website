@@ -289,6 +289,20 @@ export const projectGalleryList: ProjectEntry[] = [
     shortDescription: 'Sophisticated synthetic cognition, constitutional AI visual architecture, and calm computational aesthetics.',
     fullDescription: 'Widescreen cinematic visual identity exploring nuanced machine reasoning, conversational depth, and calm intelligent computational aesthetics.',
     direction: 'Intellectual clarity, nuanced warmth, and sophisticated typographic choreography.'
+  },
+  {
+    title: 'Base44',
+    videoUrl: 'https://res.cloudinary.com/rtl1qljc/video/upload/v1789338889/base44.mp4',
+    posterUrl: 'https://res.cloudinary.com/rtl1qljc/video/upload/so_0/v1789338889/base44.jpg',
+    category: 'AI & SaaS Motion Identity',
+    aspectRatio: '16/9',
+    client: 'Base44',
+    year: '2024',
+    role: 'Motion Designer & 3D Artist',
+    software: ['Cinema 4D', 'After Effects', 'Blender', 'Photoshop'],
+    shortDescription: 'Procedural kinetic systems, dynamic interface choreography, and high-frequency brand motion for Base44.',
+    fullDescription: 'Comprehensive motion design system showcasing procedural physics, tactile component animations, and kinetic narratives designed for next-generation software architecture.',
+    direction: 'High-contrast typography, precision timing, and fluid volumetric motion.'
   }
 ];
 

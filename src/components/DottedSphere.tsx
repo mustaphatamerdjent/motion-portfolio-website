@@ -133,11 +133,10 @@ export function DottedSphere({ className = '' }: DottedSphereProps) {
     charTexture.generateMipmaps = true;
 
     // 4. Procedural Fibonacci Golden Sphere Distribution
-    // Reduced again by 10%
-    // Mobile: 1.94 * 0.90 = 1.75
-    // Desktop: 3.98 * 0.90 = 3.58
+    // Mobile: 1.75 radius (frames typography cleanly without overflowing screen)
+    // Desktop: 3.60 radius (balanced halo surrounding the headline)
     const particleCount = isMobile ? 1150 : 2000;
-    const sphereRadius = isMobile ? 1.75 : 3.58;
+    const sphereRadius = isMobile ? 2.3 : 4;
 
     const geometry = new THREE.BufferGeometry();
     const basePositions = new Float32Array(particleCount * 3);

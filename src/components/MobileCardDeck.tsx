@@ -63,11 +63,11 @@ export function MobileCardDeck({
   // Helper to calculate cyclic shortest difference between an item and the current float position
   const getCyclicDiff = useCallback(
     (itemIndex: number, centerFloat: number) => {
-      if (total === 0) return 0;
-      let diff = (itemIndex - (centerFloat % total + total) % total);
+      if (!Number.isFinite(centerFloat) || total === 0) return 0;
+      let diff = (itemIndex - ((centerFloat % total) + total) % total);
       if (diff > total / 2) diff -= total;
       if (diff < -total / 2) diff += total;
-      return diff;
+      return Number.isFinite(diff) ? diff : 0;
     },
     [total]
   );
@@ -75,6 +75,7 @@ export function MobileCardDeck({
   // Smooth animation driver toward target virtual index with spring easing
   const animateTo = useCallback(
     (target: number) => {
+      if (!Number.isFinite(target)) return;
       if (animFrameId.current) {
         cancelAnimationFrame(animFrameId.current);
         animFrameId.current = null;
@@ -83,7 +84,7 @@ export function MobileCardDeck({
       targetIndexRef.current = target;
 
       const step = () => {
-        const current = virtualIndexRef.current;
+        const current = Number.isFinite(virtualIndexRef.current) ? virtualIndexRef.current : 0;
         const dist = targetIndexRef.current - current;
 
         // Damped spring interpolation for buttery smooth glide
@@ -97,6 +98,10 @@ export function MobileCardDeck({
         }
 
         const nextVal = current + dist * 0.16;
+        if (!Number.isFinite(nextVal)) {
+          animFrameId.current = null;
+          return;
+        }
         virtualIndexRef.current = nextVal;
         setVirtualIndex(nextVal);
         animFrameId.current = requestAnimationFrame(step);
@@ -154,7 +159,7 @@ export function MobileCardDeck({
     const touch = e.touches[0];
     touchStartX.current = touch.clientX;
     touchStartY.current = touch.clientY;
-    startVirtualIndex.current = virtualIndexRef.current;
+    startVirtualIndex.current = Number.isFinite(virtualIndexRef.current) ? virtualIndexRef.current : 0;
     isHorizontalSwipe.current = null;
     touchSamples.current = [{ x: touch.clientX, time: performance.now() }];
     setIsDragging(true);
@@ -178,9 +183,12 @@ export function MobileCardDeck({
 
       // Card sensitivity (pixels required to travel 1 card unit - fluid & responsive)
       const cardSpacingPx = 180;
-      const nextIndex = startVirtualIndex.current - dx / cardSpacingPx;
-      virtualIndexRef.current = nextIndex;
-      setVirtualIndex(nextIndex);
+      const baseVal = Number.isFinite(startVirtualIndex.current) ? startVirtualIndex.current : 0;
+      const nextIndex = baseVal - dx / cardSpacingPx;
+      if (Number.isFinite(nextIndex)) {
+        virtualIndexRef.current = nextIndex;
+        setVirtualIndex(nextIndex);
+      }
 
       // Record recent touch samples for velocity calculation
       const now = performance.now();
@@ -209,7 +217,8 @@ export function MobileCardDeck({
     // Convert velocity to card momentum projection
     // A fast flick glides smoothly across 1, 2, or 3 cards freely
     const flickMomentum = -velocity * 0.38;
-    const target = Math.round(virtualIndexRef.current + flickMomentum);
+    const baseVal = Number.isFinite(virtualIndexRef.current) ? virtualIndexRef.current : 0;
+    const target = Number.isFinite(flickMomentum) ? Math.round(baseVal + flickMomentum) : Math.round(baseVal);
 
     animateTo(target);
   };
@@ -224,7 +233,7 @@ export function MobileCardDeck({
     }
     isMouseDown.current = true;
     touchStartX.current = e.clientX;
-    startVirtualIndex.current = virtualIndexRef.current;
+    startVirtualIndex.current = Number.isFinite(virtualIndexRef.current) ? virtualIndexRef.current : 0;
     touchSamples.current = [{ x: e.clientX, time: performance.now() }];
     setIsDragging(true);
   };
@@ -233,9 +242,12 @@ export function MobileCardDeck({
     if (!isMouseDown.current) return;
     const dx = e.clientX - touchStartX.current;
     const cardSpacingPx = 180;
-    const nextIndex = startVirtualIndex.current - dx / cardSpacingPx;
-    virtualIndexRef.current = nextIndex;
-    setVirtualIndex(nextIndex);
+    const baseVal = Number.isFinite(startVirtualIndex.current) ? startVirtualIndex.current : 0;
+    const nextIndex = baseVal - dx / cardSpacingPx;
+    if (Number.isFinite(nextIndex)) {
+      virtualIndexRef.current = nextIndex;
+      setVirtualIndex(nextIndex);
+    }
 
     const now = performance.now();
     touchSamples.current.push({ x: e.clientX, time: now });
@@ -259,7 +271,8 @@ export function MobileCardDeck({
     }
 
     const flickMomentum = -velocity * 0.38;
-    const target = Math.round(virtualIndexRef.current + flickMomentum);
+    const baseVal = Number.isFinite(virtualIndexRef.current) ? virtualIndexRef.current : 0;
+    const target = Number.isFinite(flickMomentum) ? Math.round(baseVal + flickMomentum) : Math.round(baseVal);
     animateTo(target);
   };
 
@@ -300,7 +313,7 @@ export function MobileCardDeck({
           const sign = diff < 0 ? -1 : 1;
 
           // Render visible cards within the arc
-          const isVisible = absDiff <= 2.6;
+          const isVisible = Number.isFinite(absDiff) && absDiff <= 2.6;
           if (!isVisible) return null;
 
           // Fluid 3D Arc Mathematics
@@ -308,11 +321,13 @@ export function MobileCardDeck({
           const rotateY = -sign * Math.min(42, Math.pow(absDiff, 0.82) * 29);
           const translateZ = -Math.pow(absDiff, 0.9) * 85;
           const scale = Math.max(0.68, 1 - absDiff * 0.15);
-          const opacity =
+          const rawOpacity =
             absDiff > 2.1
               ? Math.max(0, ((2.6 - absDiff) / 0.5) * 0.4)
               : Math.max(0.42, 1 - absDiff * 0.28);
-          const brightness = Math.max(0.48, 1 - absDiff * 0.32);
+          const opacity = Number.isFinite(rawOpacity) ? rawOpacity : 1;
+          const rawBrightness = Math.max(0.48, 1 - absDiff * 0.32);
+          const brightness = Number.isFinite(rawBrightness) ? rawBrightness : 1;
           const zIndex = Math.round(50 - absDiff * 10);
 
           const isCenter = absDiff < 0.45;

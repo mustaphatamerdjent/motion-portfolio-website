@@ -17,22 +17,22 @@ export function MinimalProjectModal({
   onClose,
   onSelectProject
 }: MinimalProjectModalProps) {
+  const currentIndex = project ? allProjects.findIndex((p) => p.id === project.id) : -1;
+  const nextProject = currentIndex >= 0 ? allProjects[(currentIndex + 1) % allProjects.length] : null;
+  const prevProject = currentIndex >= 0 ? allProjects[(currentIndex - 1 + allProjects.length) % allProjects.length] : null;
+
   useEffect(() => {
     if (!project) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowRight') onSelectProject(nextProject);
-      if (e.key === 'ArrowLeft') onSelectProject(prevProject);
+      if (e.key === 'ArrowRight' && nextProject) onSelectProject(nextProject);
+      if (e.key === 'ArrowLeft' && prevProject) onSelectProject(prevProject);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [project, onClose]);
+  }, [project, nextProject, prevProject, onClose, onSelectProject]);
 
   if (!project) return null;
-
-  const currentIndex = allProjects.findIndex((p) => p.id === project.id);
-  const nextProject = allProjects[(currentIndex + 1) % allProjects.length];
-  const prevProject = allProjects[(currentIndex - 1 + allProjects.length) % allProjects.length];
 
   // Filter out duplicate media that matches the main hero video
   const distinctAdditionalMedia =
